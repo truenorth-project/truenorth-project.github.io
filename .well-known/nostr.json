@@ -1,0 +1,12 @@
+{
+  "names": {
+    "_": "72ac6dfa402926098de12c654c760239c2615352b84a2eb7f48a6b8fd0a4c9d6"
+  },
+  "relays": {
+    "72ac6dfa402926098de12c654c760239c2615352b84a2eb7f48a6b8fd0a4c9d6": [
+      "wss://relay.damus.io",
+      "wss://nos.lol",
+      "wss://nostr.mom"
+    ]
+  }
+}

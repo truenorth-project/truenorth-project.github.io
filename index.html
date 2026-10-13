@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrueNorth</title>
+<meta name="description" content="TrueNorth is a Canadian, CPU-mined fork of Bitcoin Core with quantum-resistant addresses by default. Ticker NORTH.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbf9; --fg: #16181c; --muted: #5a6068;
+    --rule: #dcdcd6; --code-bg: #f1f1ec; --accent: #7a1420;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15171a; --fg: #e4e6e8; --muted: #969ba3;
+            --rule: #2c3034; --code-bg: #1e2126; --accent: #e8808c; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  h1 { font-size: 2rem; margin: 0 0 .15rem; letter-spacing: -.02em; }
+  .tagline { color: var(--muted); margin: 0 0 2rem; }
+  h2 {
+    font-size: 1.07rem; margin: 2.6rem 0 .7rem; padding-bottom: .3rem;
+    border-bottom: 1px solid var(--rule); letter-spacing: .01em;
+  }
+  h3 { font-size: .97rem; margin: 1.5rem 0 .4rem; }
+  p, ul, ol { margin: 0 0 .9rem; }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin-bottom: .3rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86em; }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; }
+  pre {
+    background: var(--code-bg); padding: .8rem 1rem; border-radius: 5px;
+    overflow-x: auto; margin: 0 0 .9rem;
+  }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 .9rem; font-size: .93rem; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: .4rem .7rem .4rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; white-space: nowrap; }
+  .facts td:first-child { color: var(--muted); white-space: nowrap; }
+  .warn {
+    border-left: 3px solid var(--accent); padding: .1rem 0 .1rem 1rem; margin: 0 0 .9rem;
+  }
+  .hash { word-break: break-all; }
+  footer { margin-top: 3.2rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+  .qa dt { font-weight: 600; margin-top: .8rem; }
+  .qa dd { margin: .15rem 0 0; }
+</style>
+
+<div class="wrap">
+
+<h1>TrueNorth</h1>
+<p class="tagline">A Canadian, CPU-mined fork of Bitcoin Core. Ticker NORTH.</p>
+
+<p>Proof of work is <strong>RandomNorth</strong>, a RandomX variant with a custom Argon2
+salt and per-epoch seed-key rotation, so stock xmrig hashpower cannot be aimed at the
+chain. Blocks target two minutes with <strong>LWMA-1</strong> per-block retargeting. The
+subsidy floors at 8 NORTH instead of terminating, and <strong>P2QRH</strong>
+quantum-resistant addresses are the wallet default.</p>
+
+<p>Not a meme launch. No hype thread. No moon math. The repository is the single source
+of truth for everything below.</p>
+
+<h2>Status</h2>
+
+<p>Mainnet has been live since 2026-10-12 00:00:00 UTC. Public testnet4 is also live and
+open to anyone — see <a href="https://github.com/truenorth-project/truenorth/blob/master/doc/testnet.md"><code>doc/testnet.md</code></a>.</p>
+
+<table class="facts">
+  <tr><td>Ticker</td><td>NORTH (mainnet), tNORTH (testnet)</td></tr>
+  <tr><td>Block time</td><td>2 minutes, LWMA-1 retarget every block over a 90-block window</td></tr>
+  <tr><td>Initial subsidy</td><td>512 NORTH, halving every 1,051,200 blocks, floors at 8 NORTH</td></tr>
+  <tr><td>Default address</td><td>P2QRH, <code>north1z…</code> (bech32m, witness v2)</td></tr>
+  <tr><td>Mainnet ports</td><td><code>9555</code> P2P, <code>9554</code> RPC</td></tr>
+  <tr><td>SLIP-44 coin type</td><td>1867</td></tr>
+  <tr><td>Mainnet genesis</td><td><span class="mono hash">470c8b8ae824c06575cfae0851282c495b861829211194842590dc6a2c829981</span></td></tr>
+</table>
+
+<p>A TrueNorth node and a Bitcoin node will refuse to peer with each other. Magic bytes,
+ports, address prefixes and the genesis block are all distinct.</p>
+
+<h2>Download and verify</h2>
+
+<p>Binaries for Linux x86_64, macOS arm64 and Windows x86_64 are on the
+<a href="https://github.com/truenorth-project/truenorth/releases">releases page</a>. There is no
+other download location. Building from source is documented in
+<a href="https://github.com/truenorth-project/truenorth#build-from-source">the README</a>.</p>
+
+<p>Each release carries <code>SHA256SUMS</code> and a detached signature
+<code>SHA256SUMS.asc</code>. Verify both:</p>
+
+<pre><code>gpg --import contrib/keys/septentrion-dev.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum -c SHA256SUMS</code></pre>
+
+<h3>The two fingerprints</h3>
+
+<p>Signing is done by a subkey, so GPG reports two different fingerprints and neither
+output is wrong:</p>
+
+<table>
+  <tr><th>primary (identity, certification only)</th><td><span class="mono hash">3F0BAE0458615427B8CA935E3E242DF5E4478AE5</span></td></tr>
+  <tr><th>signing subkey (what signs releases)</th><td><span class="mono hash">895B7591E9701E99D87D58A9B932A2FBD92C626D</span></td></tr>
+</table>
+
+<p><code>gpg --verify</code> opens with <code>using EDDSA key 895B…626D</code>. That is the
+subkey, and it will not match the primary fingerprint — expected, not a problem. It then
+prints both, labelled <code>Primary key fingerprint</code> and <code>Subkey
+fingerprint</code>. <code>git verify-tag</code> reports only the subkey.</p>
+
+<div class="warn">
+<p>Check the primary fingerprint against a source other than this page before trusting it.
+Anyone who can alter a page can alter both the key and the fingerprint printed beside it.
+The same key is published at
+<a href="https://github.com/septentrion-dev.gpg"><code>github.com/septentrion-dev.gpg</code></a>
+and on <code>keys.openpgp.org</code>, which fail independently of each other.</p>
+</div>
+
+<h2>Running a node</h2>
+
+<ul>
+  <li><a href="https://github.com/truenorth-project/truenorth#running-a-node">Mainnet, testnet4 and regtest</a></li>
+  <li><a href="https://github.com/truenorth-project/truenorth/blob/master/doc/tor.md"><code>doc/tor.md</code></a> — running over Tor, including finding peers when <code>onlynet=onion</code></li>
+  <li><a href="https://github.com/truenorth-project/truenorth/blob/master/doc/public-seed-setup.md"><code>doc/public-seed-setup.md</code></a> — operating a public seed</li>
+  <li><a href="https://github.com/truenorth-project/truenorth/blob/master/doc/reduce-memory.md"><code>doc/reduce-memory.md</code></a> — low-memory tuning</li>
+</ul>
+
+<h2>Mining</h2>
+
+<p>Mining is CPU-only in practice. The release archives include
+<code>truenorth-miner</code>. If you are building from source it is excluded from the
+default target and needs asking for by name:</p>
+
+<pre><code>cmake --build build --target truenorth-miner</code></pre>
+
+<ul>
+  <li><a href="https://github.com/truenorth-project/truenorth#mining">Solo mining, and huge-pages and NUMA tuning</a> — the tuning section matters, a correctly configured box is several times faster</li>
+  <li><a href="https://github.com/truenorth-project/truenorth/blob/master/doc/mining-policy.md"><code>doc/mining-policy.md</code></a> — solo and P2Pool are preferred, and why concentration is the thing to watch</li>
+</ul>
+
+<p>RandomX wants 256 KB of L2 cache per thread. On most server parts that works out to one
+thread per physical core, and running more threads than that makes a box slower, not
+faster.</p>
+
+<h2>Quantum resistance</h2>
+
+<p>P2QRH is the wallet default rather than an opt-in, which is the whole point — a
+quantum-resistant address type nobody uses protects nobody. See
+<a href="https://github.com/truenorth-project/truenorth/blob/master/doc/p2qrh.md"><code>doc/p2qrh.md</code></a>
+for what the commitment scheme does and does not protect against.</p>
+
+<h2>There are no official social accounts</h2>
+
+<div class="warn">
+<p>TrueNorth has <strong>no official</strong> Twitter or X account, Discord, Telegram,
+Matrix room or YouTube channel. Anything claiming to be one of those is not connected to
+this project.
+There has been no presale, no ICO, no airdrop and no founder allocation. The subsidy
+schedule is the only way coins come into existence.</p>
+<p>Nobody involved in the project will message you first, ask for a seed phrase, ask you
+to validate a wallet, or offer to send coins. Download binaries from the releases page
+and nowhere else, and verify the signature.</p>
+</div>
+
+<p>These are the only places the project communicates:</p>
+
+<ul>
+  <li><a href="https://github.com/truenorth-project/truenorth">github.com/truenorth-project/truenorth</a> — source, releases, issues and discussions</li>
+  <li><strong>IRC</strong> on OFTC: <code>#truenorth</code> and <code>#truenorth-dev</code></li>
+  <li><strong>Nostr</strong>: <span class="mono hash">npub1w2kxm7jq9ynqnr0p93j5casz88pxz56jhp9zadl53f4cl59ye8tqejqyw5</span></li>
+</ul>
+
+<h2>Questions</h2>
+
+<dl class="qa">
+  <dt>Is there a GUI wallet?</dt>
+  <dd>Not in the releases. Each archive ships <code>truenorthd</code>,
+  <code>truenorth-cli</code> and <code>truenorth-miner</code>. The inherited Qt GUI is
+  still in the tree but is not built for releases.</dd>
+
+  <dt>Can I mine with a GPU or an ASIC?</dt>
+  <dd>No ASIC exists for RandomNorth. GPUs are poor at RandomX and the custom salt means
+  stock miners will not work against this chain unmodified.</dd>
+
+  <dt>Is it on an exchange?</dt>
+  <dd>The project does not arrange listings and does not endorse any. Exchange operators
+  should read
+  <a href="https://github.com/truenorth-project/truenorth/blob/master/doc/exchange-listing-guidance.md"><code>doc/exchange-listing-guidance.md</code></a>
+  for confirmation-depth guidance.</dd>
+
+  <dt>Are the builds reproducible?</dt>
+  <dd>No. Releases are built by GitHub Actions from the tagged source and carry a build
+  provenance attestation, but recompiling a tag is not guaranteed to produce the published
+  bytes.</dd>
+
+  <dt>Who runs this?</dt>
+  <dd>One maintainer, pseudonymously, with outside contributors on specific work. Review
+  the code rather than trusting the name on it.</dd>
+</dl>
+
+<footer>
+<p>Everything authoritative lives in the
+<a href="https://github.com/truenorth-project/truenorth">repository</a>. If this page and the
+repository disagree, the repository is correct.</p>
+</footer>
+
+</div>
+</html>
