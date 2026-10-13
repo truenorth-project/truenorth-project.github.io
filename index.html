@@ -159,9 +159,14 @@ for what the commitment scheme does and does not protect against.</p>
 <div class="warn">
 <p>TrueNorth has <strong>no official</strong> Twitter or X account, Discord, Telegram,
 Matrix room or YouTube channel. Anything claiming to be one of those is not connected to
-this project.
-There has been no presale, no ICO, no airdrop and no founder allocation. The subsidy
-schedule is the only way coins come into existence.</p>
+this project. There has been no presale, no ICO, no airdrop and no founder allocation,
+and the protocol takes no dev fee: the coinbase carries a single output paying whoever
+mined the block, and consensus caps only the amount, never the recipient. The genesis
+reward is an <code>OP_RETURN</code> and is unspendable by anyone. The subsidy schedule is
+the only way coins come into existence.</p>
+<p>Pools and third-party miner binaries set their own fees, which are theirs and not the
+protocol's. Check what a pool takes, and what binary it asks you to run, before pointing
+hashrate at it.</p>
 <p>Nobody involved in the project will message you first, ask for a seed phrase, ask you
 to validate a wallet, or offer to send coins. Download binaries from the releases page
 and nowhere else, and verify the signature.</p>
