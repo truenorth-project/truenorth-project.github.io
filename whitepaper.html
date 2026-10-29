@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrueNorth whitepaper</title>
+<meta name="description" content="TrueNorth whitepaper: RandomNorth proof of work, per-block LWMA difficulty, tail emission, and P2QRH quantum-resistant outputs.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbf9; --fg: #16181c; --muted: #5a6068;
+    --rule: #dcdcd6; --code-bg: #f1f1ec; --accent: #7a1420;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15171a; --fg: #e4e6e8; --muted: #969ba3;
+            --rule: #2c3034; --code-bg: #1e2126; --accent: #e8808c; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  h1 { font-size: 2rem; margin: 0 0 .15rem; letter-spacing: -.02em; }
+  .tagline { color: var(--muted); margin: 0 0 2rem; }
+  h2 {
+    font-size: 1.07rem; margin: 2.6rem 0 .7rem; padding-bottom: .3rem;
+    border-bottom: 1px solid var(--rule); letter-spacing: .01em;
+  }
+  h3 { font-size: .97rem; margin: 1.5rem 0 .4rem; }
+  p, ul, ol { margin: 0 0 .9rem; }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin-bottom: .3rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86em; }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; }
+  pre {
+    background: var(--code-bg); padding: .8rem 1rem; border-radius: 5px;
+    overflow-x: auto; margin: 0 0 .9rem;
+  }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 .9rem; font-size: .93rem; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: .4rem .7rem .4rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; white-space: nowrap; }
+  .facts td:first-child { color: var(--muted); white-space: nowrap; }
+  .warn {
+    border-left: 3px solid var(--accent); padding: .1rem 0 .1rem 1rem; margin: 0 0 .9rem;
+  }
+  .hash { word-break: break-all; }
+  footer { margin-top: 3.2rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+  .qa dt { font-weight: 600; margin-top: .8rem; }
+  .qa dd { margin: .15rem 0 0; }
+  nav { font-size: .9rem; margin: 0 0 1.6rem; }
+  .abstract { border-left: 3px solid var(--rule); padding: .1rem 0 .1rem 1rem; color: var(--fg); }
+  .meta { color: var(--muted); font-size: .9rem; margin: 0 0 1.4rem; }
+</style>
+
+<div class="wrap">
+
+<nav><a href="./">TrueNorth</a> · Whitepaper · <a href="press.html">Press release</a></nav>
+
+<h1>TrueNorth</h1>
+<p class="tagline">A CPU-mined fork of Bitcoin Core with quantum-resistant addresses by default</p>
+<p class="meta">Version 1.0 · 2026-10-28 · describes TrueNorth Core v30.5.1</p>
+
+<div class="abstract">
+<p><strong>Abstract.</strong> TrueNorth is a peer-to-peer electronic cash system derived
+from Bitcoin Core. It keeps Bitcoin's transaction model, scripting system, SegWit and
+Taproot, and changes four things: proof of work is a RandomX variant that commodity CPUs
+mine efficiently; difficulty retargets every block; the block subsidy declines to a
+permanent floor instead of to zero; and the default output type commits to a hash of the
+spending key rather than exposing it, with a registry that lets post-quantum signature
+schemes be added by soft fork. This document describes each change, the reasoning behind
+it, and what it does not protect against. Every parameter here is taken from the source
+code, which is authoritative where the two differ.</p>
+</div>
+
+<h2>1. Motivation</h2>
+
+<p>Bitcoin's design has held up for seventeen years, and TrueNorth does not try to improve
+on its transaction model. It addresses three narrower concerns.</p>
+
+<p><strong>Who can mine.</strong> SHA-256d mining is dominated by specialised hardware, so
+taking part requires buying equipment built for no other purpose. A proof of work that
+runs well on ordinary processors lets anyone with a computer contribute hashrate and earn
+from it, which spreads block production across more independent hands.</p>
+
+<p><strong>Keys exposed on chain.</strong> A sufficiently large quantum computer running
+Shor's algorithm could derive a private key from a secp256k1 public key. Many Bitcoin
+outputs already reveal their public keys — early pay-to-pubkey outputs, every reused
+address, and every Taproot output, whose key is the output itself. Those coins would be
+exposed the moment such a machine exists, whether or not their owners ever move them.
+A new chain can choose an output type that hides the key until it is spent, and can plan
+for new signature schemes from the start rather than retrofitting them.</p>
+
+<p><strong>Paying for security forever.</strong> Bitcoin's subsidy halves toward zero, after
+which miners are paid only by fees. Whether fees alone will fund enough security is an
+open question. TrueNorth answers it by keeping a small permanent subsidy.</p>
+
+<h2>2. What is inherited</h2>
+
+<p>TrueNorth Core is a fork of Bitcoin Core and inherits, unchanged: the UTXO model, Script,
+SegWit (BIP141/143), Taproot (BIP340/341/342), descriptor wallets, PSBT, the P2P protocol
+and its relay and mempool policy, and the reorg, validation and storage machinery. It has
+no smart-contract platform and no on-chain governance. A TrueNorth node and a Bitcoin node
+will not peer: the network magic, ports, address prefixes and genesis block all differ.</p>
+
+<h2>3. Proof of work: RandomNorth</h2>
+
+<p>Block headers are hashed with <strong>RandomX</strong>, the proof of work Monero has used
+since 2019. RandomX executes randomly generated programs on a virtual machine designed to
+resemble a general-purpose CPU — integer and floating-point arithmetic, branches, and
+random reads from a large memory dataset. The work rewards exactly what desktop and server
+processors are built to do, which narrows the advantage specialised hardware can gain.</p>
+
+<p>TrueNorth's variant, <strong>RandomNorth</strong>, changes RandomX's Argon2 salt to
+<code>TrueNorth/RandomNorth/v1</code>. The salt feeds the dataset construction, so a stock
+RandomX miner produces valid-looking work for a different proof of work entirely: its hashes
+are real, but they cannot satisfy TrueNorth's difficulty. Hashpower rented for or pointed at
+Monero cannot be redirected here without a purpose-built miner.</p>
+
+<p>The RandomX key — the seed from which the dataset is derived — rotates every
+<strong>2,048 blocks</strong> (about 2.8 days), taken from a block hash 64 blocks in the past
+so miners can build the next dataset before it is needed. Mining uses RandomX's fast mode
+with a dataset of roughly 2 GiB; verifying a block uses light mode with a cache of roughly
+256 MiB, so running a node does not require mining-class memory.</p>
+
+<p><strong>What this does not claim.</strong> RandomX is designed to resist ASICs, not to
+make them impossible. RandomX ASICs exist. The aim is to keep any specialised advantage
+small enough that commodity CPUs remain competitive. Nor is CPU-friendliness a defence on
+its own: an attacker can rent CPU time as easily as anyone else, which is why the security
+measures in section 7 do not rest on proof of work alone.</p>
+
+<h2>4. Difficulty adjustment</h2>
+
+<p>Blocks target <strong>120 seconds</strong>. Difficulty is set by <strong>LWMA-1</strong>,
+a linearly weighted moving average of solve times over the last <strong>90 blocks</strong>
+(about three hours), recomputed for every block. Recent blocks carry the most weight, so
+difficulty follows hashrate within hours rather than weeks.</p>
+
+<p>Bitcoin's 2,016-block retarget works for a large, stable network. On a small one it lets
+a miner arrive with a burst of hashrate, mine many blocks cheaply at the old difficulty, and
+leave the honest network stuck at an inflated difficulty until the next window. Per-block
+retargeting removes that window.</p>
+
+<h2>5. P2QRH: quantum-resistant outputs</h2>
+
+<p>Pay-to-Quantum-Resistant-Hash (P2QRH) is a new SegWit output type at witness version 2.
+It is the wallet default.</p>
+
+<h3>5.1 Output and address</h3>
+
+<pre><code>scriptPubKey:  OP_2 &lt;32-byte commitment&gt;
+
+commitment = SHA256("TrueNorth/QRH/v1" || scheme_id || pubkey || script_root)</code></pre>
+
+<p>The output holds a 32-byte hash, never a public key. <code>scheme_id</code> is one byte
+selecting a signature scheme, <code>pubkey</code> is that scheme's public key, and
+<code>script_root</code> is the root of an optional tree of alternative spending scripts,
+following Taproot's design (all zeros when there is none). The domain-separation prefix
+prevents a commitment from colliding with any other hash. Addresses are bech32m with the
+prefix <code>north1z…</code>, 65 characters long — three more than a Bitcoin Taproot
+address, a difference that comes entirely from the longer human-readable prefix.</p>
+
+<h3>5.2 Spending</h3>
+
+<p>To spend, the witness reveals <code>scheme_id</code>, the public key and the signature.
+Consensus recomputes the commitment from them, checks it matches the output, and only then
+dispatches to the verifier that <code>scheme_id</code> names. A script-path spend reveals a
+script and a Merkle proof against <code>script_root</code> instead, exactly as in Taproot.</p>
+
+<h3>5.3 Adding signature schemes</h3>
+
+<table>
+  <tr><th>scheme_id</th><th>Scheme</th><th>Status</th></tr>
+  <tr><td><code>0x01</code></td><td>secp256k1 Schnorr (BIP340)</td><td>Active</td></tr>
+  <tr><td><code>0x02</code></td><td>ML-DSA-44</td><td>Reserved</td></tr>
+  <tr><td><code>0x03</code></td><td>Falcon-512</td><td>Reserved</td></tr>
+  <tr><td><code>0x04</code></td><td>SLH-DSA-128s</td><td>Reserved</td></tr>
+</table>
+
+<p>Today only Schnorr is valid; any other <code>scheme_id</code> fails at consensus. Because
+the output commits to a hash regardless of scheme, a post-quantum scheme can be activated by
+soft fork without a new output type, a new address format, or any change to existing coins.
+Users would move funds to a commitment under the new scheme when they choose to, using the
+same kind of address they already have.</p>
+
+<h3>5.4 Cost</h3>
+
+<p>A P2QRH output is 34 bytes, identical to a Taproot output, so the UTXO set does not grow.
+A Schnorr key-path spend adds about three witness bytes over Taproot. Post-quantum schemes
+have far larger keys and signatures, but that cost falls only on the transaction that spends,
+and only when it uses one.</p>
+
+<h3>5.5 Limits</h3>
+
+<ul>
+  <li><strong>Protection is at rest.</strong> Spending reveals the public key. A coin is
+  exposed while its spending transaction is unconfirmed, and permanently if the same key is
+  used again afterwards. Don't reuse addresses.</li>
+  <li><strong>Schnorr is not post-quantum.</strong> Until a post-quantum scheme is
+  activated, every spend is signed with secp256k1 and is breakable by the machine this design
+  anticipates. P2QRH removes the exposure of coins that sit still and provides the upgrade
+  path; it does not by itself make signatures quantum-safe.</li>
+  <li><strong>Hardware wallets don't support it yet.</strong> Wallets without a P2QRH
+  descriptor fall back to other address types, which expose their keys at rest as Bitcoin's
+  do.</li>
+</ul>
+
+<h2>6. Monetary policy</h2>
+
+<pre><code>subsidy(height) = max(512 &gt;&gt; floor(height / 1,051,200), 8)  NORTH</code></pre>
+
+<table>
+  <tr><th>Era</th><th>Approximate years</th><th>Subsidy per block</th></tr>
+  <tr><td>1</td><td>0–4</td><td>512</td></tr>
+  <tr><td>2</td><td>4–8</td><td>256</td></tr>
+  <tr><td>3</td><td>8–12</td><td>128</td></tr>
+  <tr><td>4</td><td>12–16</td><td>64</td></tr>
+  <tr><td>5</td><td>16–20</td><td>32</td></tr>
+  <tr><td>6</td><td>20–24</td><td>16</td></tr>
+  <tr><td>Tail</td><td>24 onward</td><td>8, permanently</td></tr>
+</table>
+
+<p>The halving interval of 1,051,200 blocks is four years at two-minute blocks, the same
+period as Bitcoin. The six halving eras issue 1,059,609,600 NORTH. After that the subsidy
+stays at 8 NORTH a block, about 2.1 million NORTH a year — roughly 0.2% of supply at that
+point, and a smaller percentage every year after, because the issuance is fixed while the
+supply grows. There is therefore no hard cap. The smallest unit is the
+<strong>miette</strong>; one NORTH is 100,000,000 miettes.</p>
+
+<p><strong>How coins come into existence.</strong> Only through block subsidies, paid to
+whoever mined the block. There was no presale, no ICO, no airdrop and no founder
+allocation. The genesis block's output is an <code>OP_RETURN</code> and can never be spent.
+There is no dev fee: the coinbase pays a single output, and consensus limits its amount but
+never its recipient. Mining pools and third-party miner software may charge their own fees;
+those are theirs, not the protocol's. Newly mined coins can be spent after 100 blocks.</p>
+
+<h2>7. Security model</h2>
+
+<p>A small proof-of-work chain can be attacked by anyone who briefly controls more hashrate
+than everyone else combined. TrueNorth does not pretend otherwise. It combines several
+measures, each covering a different part of the problem.</p>
+
+<h3>7.1 A consensus cap on reorganisation depth</h3>
+
+<p>A node refuses to disconnect more than <strong>72 blocks</strong> (about 2.4 hours) from
+its own chain tip, however much work the competing chain carries. Past that depth a
+double-spend is not merely expensive — it is rejected. The cap has two limits. It protects
+a node that holds a tip; a node syncing from scratch has nothing to defend and will follow
+the most-work chain it is shown. And a refused reorg splits the network between nodes that
+saw the honest chain and nodes that didn't, which takes operator action to resolve. It turns
+a silent theft into a visible incident; it does not make the chain unattackable.</p>
+
+<h3>7.2 Coinbase maturity above the cap</h3>
+
+<p>Newly mined coins become spendable after 100 blocks, which is deliberately more than the
+72-block cap. By the time a coinbase can be spent, no reorganisation the network will accept
+can remove the block that created it.</p>
+
+<h3>7.3 Confirmation depth</h3>
+
+<p>The project recommends that exchanges and merchants treat a payment as final after
+<strong>100 confirmations</strong> — a fixed number above the reorganisation cap, rather
+than one computed from hashrate. Below about six confirmations, ordinary chain races can
+reverse a payment with no attacker involved. Between six and 72, safety depends on the
+payment being worth less than the cost of rewriting that many blocks, which moves with
+hashrate. Above 72 it does not depend on hashrate at all. The cost arithmetic, with worked
+examples, is in <code>doc/reorg-economics.md</code>.</p>
+
+<h3>7.4 Isolated hashpower</h3>
+
+<p>The RandomNorth salt (section 3) means existing RandomX hashpower cannot be pointed at the
+chain without a purpose-built miner, and at the time of writing no hashrate marketplace
+sells RandomNorth. That raises the cost of a quick attack. It is a barrier, not a guarantee —
+supporting the salt is a small code change.</p>
+
+<h3>7.5 Checkpoints and the launch instant</h3>
+
+<p>Releases can carry checkpoints that fix known-good blocks in place, inherited from Bitcoin
+Core. Separately, mainnet consensus rejects any non-genesis block whose timestamp is earlier
+than the launch instant, 2026-10-12 00:00:00 UTC. That rule constrains block timestamps; it
+is not a statement about when work was done.</p>
+
+<h3>7.6 Planned: notarisation</h3>
+
+<p>The longer-term defence is to commit TrueNorth block hashes periodically into a
+higher-hashrate chain, most likely Bitcoin, so that any reorganisation past a notarised
+point can be rejected regardless of proof of work — including for a node syncing from
+scratch, the case the depth cap cannot cover. This is designed but not built, and has no
+committed date. The design space is documented in <code>doc/notarization-design.md</code>.</p>
+
+<h3>7.7 Rejected alternatives</h3>
+
+<p>Merge-mining with a larger chain is the strongest known defence for small coins, but it
+ties mining to that chain's miners and hardware, which defeats the purpose of CPU mining.
+And there is no counter-attack remedy: out-mining an attacker to reverse a reorganisation is
+itself a 51% attack, and would demonstrate that the chain's history can be rewritten. The
+response to an attack is prevention and coordinated node updates, not retaliation.</p>
+
+<h2>8. Parameters</h2>
+
+<table class="facts">
+  <tr><td>Ticker</td><td>NORTH</td></tr>
+  <tr><td>Smallest unit</td><td>1 miette = 0.00000001 NORTH</td></tr>
+  <tr><td>Proof of work</td><td>RandomNorth (RandomX, salt <code>TrueNorth/RandomNorth/v1</code>)</td></tr>
+  <tr><td>Seed rotation</td><td>every 2,048 blocks, 64-block lag</td></tr>
+  <tr><td>Block target</td><td>120 seconds</td></tr>
+  <tr><td>Difficulty</td><td>LWMA-1, 90-block window, every block</td></tr>
+  <tr><td>Subsidy</td><td>512 NORTH, halving every 1,051,200 blocks, floor 8 NORTH</td></tr>
+  <tr><td>Coinbase maturity</td><td>100 blocks</td></tr>
+  <tr><td>Reorg depth cap</td><td>72 blocks</td></tr>
+  <tr><td>Default output</td><td>P2QRH, witness v2, <code>north1z…</code></td></tr>
+  <tr><td>Ports</td><td>9555 P2P, 9554 RPC</td></tr>
+  <tr><td>SLIP-44 coin type</td><td>1867; P2QRH derivation <code>m/88h/1867h/0h/…</code></td></tr>
+  <tr><td>Genesis</td><td class="hash"><code>470c8b8ae824c06575cfae0851282c495b861829211194842590dc6a2c829981</code></td></tr>
+  <tr><td>Launch</td><td>2026-10-12 00:00:00 UTC</td></tr>
+</table>
+
+<h2>9. References</h2>
+
+<ul>
+  <li>S. Nakamoto, <em>Bitcoin: A Peer-to-Peer Electronic Cash System</em>, 2008.</li>
+  <li>tevador et al., <em>RandomX</em> specification (<code>src/randomx/doc/specs.md</code>).</li>
+  <li>BIP141, BIP340, BIP341, BIP342, BIP350.</li>
+  <li>NIST FIPS 204 (ML-DSA) and FIPS 205 (SLH-DSA).</li>
+  <li>zawy12, LWMA difficulty algorithm.</li>
+  <li>Repository documents: <code>TRUENORTH_SPEC.md</code>, <code>doc/p2qrh.md</code>,
+  <code>doc/reorg-economics.md</code>, <code>doc/exchange-listing-guidance.md</code>,
+  <code>doc/notarization-design.md</code>.</li>
+</ul>
+
+<footer>
+<p>The <a href="https://github.com/truenorth-project/truenorth">repository</a> is
+authoritative. If this paper and the source code disagree, the code is correct.</p>
+</footer>
+
+</div>
+</html>
