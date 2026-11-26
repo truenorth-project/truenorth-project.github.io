@@ -61,7 +61,9 @@
 
 <h1>TrueNorth</h1>
 <p class="tagline">A CPU-mined fork of Bitcoin Core with quantum-resistant addresses by default</p>
-<p class="meta">Version 1.0 · 2026-10-28 · describes TrueNorth Core v30.5.1</p>
+<p class="meta">Version 1.1 · 2026-11-25 · describes TrueNorth Core v30.5.1</p>
+<p class="meta">Changes from 1.0 (2026-10-28): §5 corrected. Witness v2 is key-path only;
+new signature schemes and script paths are planned for witness v3.</p>
 
 <div class="abstract">
 <p><strong>Abstract.</strong> TrueNorth is a peer-to-peer electronic cash system derived
@@ -69,8 +71,8 @@ from Bitcoin Core. It keeps Bitcoin's transaction model, scripting system, SegWi
 Taproot, and changes four things: proof of work is a RandomX variant that commodity CPUs
 mine efficiently; difficulty retargets every block; the block subsidy declines to a
 permanent floor instead of to zero; and the default output type commits to a hash of the
-spending key rather than exposing it, with a registry that lets post-quantum signature
-schemes be added by soft fork. This document describes each change, the reasoning behind
+spending key rather than exposing it, with post-quantum signature schemes planned for a
+successor output type added by soft fork. This document describes each change, the reasoning behind
 it, and what it does not protect against. Every parameter here is taken from the source
 code, which is authoritative where the two differ.</p>
 </div>
@@ -90,8 +92,8 @@ Shor's algorithm could derive a private key from a secp256k1 public key. Many Bi
 outputs already reveal their public keys — early pay-to-pubkey outputs, every reused
 address, and every Taproot output, whose key is the output itself. Those coins would be
 exposed the moment such a machine exists, whether or not their owners ever move them.
-A new chain can choose an output type that hides the key until it is spent, and can plan
-for new signature schemes from the start rather than retrofitting them.</p>
+A new chain can make an output type that hides the key until it is spent the default from
+its first block.</p>
 
 <p><strong>Paying for security forever.</strong> Bitcoin's subsidy halves toward zero, after
 which miners are paid only by fees. Whether fees alone will fund enough security is an
@@ -146,7 +148,8 @@ retargeting removes that window.</p>
 <h2>5. P2QRH: quantum-resistant outputs</h2>
 
 <p>Pay-to-Quantum-Resistant-Hash (P2QRH) is a new SegWit output type at witness version 2.
-It is the wallet default.</p>
+It is the wallet default. Script paths and post-quantum schemes are planned for witness
+version 3 (§5.3).</p>
 
 <h3>5.1 Output and address</h3>
 
@@ -156,34 +159,42 @@ commitment = SHA256("TrueNorth/QRH/v1" || scheme_id || pubkey || script_root)</c
 
 <p>The output holds a 32-byte hash, never a public key. <code>scheme_id</code> is one byte
 selecting a signature scheme, <code>pubkey</code> is that scheme's public key, and
-<code>script_root</code> is the root of an optional tree of alternative spending scripts,
-following Taproot's design (all zeros when there is none). The domain-separation prefix
+<code>script_root</code> is reserved for the root of a tree of alternative spending scripts,
+following Taproot's design; in witness v2 it is always all zeros. The domain-separation prefix
 prevents a commitment from colliding with any other hash. Addresses are bech32m with the
 prefix <code>north1z…</code>, 65 characters long — three more than a Bitcoin Taproot
 address, a difference that comes entirely from the longer human-readable prefix.</p>
 
 <h3>5.2 Spending</h3>
 
-<p>To spend, the witness reveals <code>scheme_id</code>, the public key and the signature.
+<p>To spend, the witness reveals the signature, the public key and <code>scheme_id</code>.
 Consensus recomputes the commitment from them, checks it matches the output, and only then
-dispatches to the verifier that <code>scheme_id</code> names. A script-path spend reveals a
-script and a Merkle proof against <code>script_root</code> instead, exactly as in Taproot.</p>
+verifies the signature. In witness v2 this key-path spend with <code>scheme_id</code>
+<code>0x01</code> is the only valid witness; every other witness, a script path included,
+fails at consensus.</p>
 
-<h3>5.3 Adding signature schemes</h3>
+<h3>5.3 Adding signature schemes and script paths</h3>
 
 <table>
   <tr><th>scheme_id</th><th>Scheme</th><th>Status</th></tr>
   <tr><td><code>0x01</code></td><td>secp256k1 Schnorr (BIP340)</td><td>Active</td></tr>
-  <tr><td><code>0x02</code></td><td>ML-DSA-44</td><td>Reserved</td></tr>
-  <tr><td><code>0x03</code></td><td>Falcon-512</td><td>Reserved</td></tr>
-  <tr><td><code>0x04</code></td><td>SLH-DSA-128s</td><td>Reserved</td></tr>
+  <tr><td><code>0x02</code></td><td>ML-DSA-44</td><td>Reserved (invalid in v2)</td></tr>
+  <tr><td><code>0x03</code></td><td>Falcon-512</td><td>Reserved (invalid in v2)</td></tr>
+  <tr><td><code>0x04</code></td><td>SLH-DSA-128s</td><td>Reserved (invalid in v2)</td></tr>
 </table>
 
-<p>Today only Schnorr is valid; any other <code>scheme_id</code> fails at consensus. Because
-the output commits to a hash regardless of scheme, a post-quantum scheme can be activated by
-soft fork without a new output type, a new address format, or any change to existing coins.
-Users would move funds to a commitment under the new scheme when they choose to, using the
-same kind of address they already have.</p>
+<p>In witness v2 only Schnorr is valid, and any other <code>scheme_id</code> fails at
+consensus. A soft fork can only tighten the rules, so v2 can never accept a new scheme or a
+script path without a hard fork. Both are planned instead for a new output type at witness
+version 3 (<code>north1r…</code>), activated by soft fork and built with Taproot-style upgrade
+hooks, so that later schemes can be added to it by soft fork as well. The registry numbering
+above carries over to v3.</p>
+
+<p>Witness v2 outputs stay valid and spendable permanently. An address commits to its scheme
+when it is created, so using a new scheme means moving funds to a new address with an
+ordinary transaction, as Bitcoin users did for SegWit and Taproot. TrueNorth Core releases
+already in use can pay a v3 address. The plan and its requirements are in
+<code>doc/p2qrh.md</code> and <code>doc/design/p2qrh-upgrade-path.md</code>.</p>
 
 <h3>5.4 Cost</h3>
 
@@ -200,8 +211,8 @@ and only when it uses one.</p>
   used again afterwards. Don't reuse addresses.</li>
   <li><strong>Schnorr is not post-quantum.</strong> Until a post-quantum scheme is
   activated, every spend is signed with secp256k1 and is breakable by the machine this design
-  anticipates. P2QRH removes the exposure of coins that sit still and provides the upgrade
-  path; it does not by itself make signatures quantum-safe.</li>
+  anticipates. P2QRH removes the exposure of coins that sit still; it does not by itself
+  make signatures quantum-safe, and post-quantum schemes are planned for witness v3.</li>
   <li><strong>Hardware wallets don't support it yet.</strong> Wallets without a P2QRH
   descriptor fall back to other address types, which expose their keys at rest as Bitcoin's
   do.</li>
@@ -327,7 +338,7 @@ response to an attack is prevention and coordinated node updates, not retaliatio
   <li>zawy12, LWMA difficulty algorithm.</li>
   <li>Repository documents: <code>TRUENORTH_SPEC.md</code>, <code>doc/p2qrh.md</code>,
   <code>doc/reorg-economics.md</code>, <code>doc/exchange-listing-guidance.md</code>,
-  <code>doc/notarization-design.md</code>.</li>
+  <code>doc/notarization-design.md</code>, <code>doc/design/p2qrh-upgrade-path.md</code>.</li>
 </ul>
 
 <footer>
